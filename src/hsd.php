@@ -78,6 +78,7 @@ After fixed area to end of file - place for iii-package with hsd-parameters.
      * @param string $locker_str
      * @return boolean|string
      */
+
     public function writeLocker(
         $locker_str, //data-string, packaged by self::packLocker()
         $overwrite = false
@@ -95,6 +96,7 @@ After fixed area to end of file - place for iii-package with hsd-parameters.
         }
         return false;
     }
+
     /**
      * Make data-string for locker-file
      *
