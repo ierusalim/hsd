@@ -91,7 +91,7 @@ After fixed area to end of file - place for iii-package with hsd-parameters.
 
         // write locker
         $wb_cnt = file_put_contents($locker_file_name, $locker_str);
-        if ($wb_cnt != strlen($locker_str)) {
+        if ($wb_cnt < strlen($locker_str)) {
             return 'Error HSD-locker write';
         }
         return false;
@@ -1023,47 +1023,6 @@ After fixed area to end of file - place for iii-package with hsd-parameters.
             $fin_file = true;
         }
 
-
-/* $in_arr is:
-[rec_size] => 8
-[locker_arr] => Array
-    (
-        [alg] => LW
-        [hash_size] => 32
-        [fix_arr] => Array
-            (
-                [wr_hsd_n] => 4
-                [wr_trans_n] => 3
-                [wr_seek] => 41518
-                [hash_seek] => 41189
-                [wr_blk_n] => 30
-                [st_blk_n] => 4
-            )
-
-    )
-
-[iii_arr] => Array
-    (
-        [sid] => 0123456789abcdef
-        [fil] => Array
-            (
-                [fnum] => 4
-                [maxl] => 10485760
-                [maxb] => 1000
-            )
-
-        [blk] => Array
-            (
-                [from] => 4
-                [maxt] => 65535
-                [maxs] => 8388608
-                [numb] =>
-                [time] =>
-                [hash] => sha256
-            )
-
-    )
-         */
         if ($fin_block || $fin_file) {
             $fin_size = $hash_size + 4 + $rec_size;
             if ($fin_file) {

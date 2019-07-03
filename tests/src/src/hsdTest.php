@@ -85,10 +85,14 @@ class hsdTest extends \PHPUnit_Framework_TestCase
      */
     public function testWriteLocker()
     {
-        // Remove the following lines when you implement this test.
-        $this->markTestIncomplete(
-            'This test has not been implemented yet.'
-        );
+        $hsd = $this->object;
+        $locker_name = $hsd->lockerFileName();
+
+        $str = 'test';
+        $r = $hsd->writeLocker($str);
+        $this->assertFalse($r);
+        $r = $hsd->writeLocker($str);
+        $this->assertTrue(is_string($r));
     }
 
     /**
