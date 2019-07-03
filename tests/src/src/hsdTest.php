@@ -80,7 +80,7 @@ class hsdTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * @covers ierusalim\hsd\hsd::writeLocker
+     * @covers ierusalim\hsd\hsdIndex::writeLocker
      * @todo   Implement testWriteLocker().
      */
     public function testWriteLocker()
@@ -89,9 +89,9 @@ class hsdTest extends \PHPUnit_Framework_TestCase
         $locker_name = $hsd->lockerFileName();
 
         $str = 'test';
-        $r = $hsd->writeLocker($str);
+        $r = hsdIndex::writeLocker($locker_name, $str);
         $this->assertFalse($r);
-        $r = $hsd->writeLocker($str);
+        $r = hsdIndex::writeLocker($locker_name, $str);
         $this->assertTrue(is_string($r));
     }
 
@@ -322,10 +322,74 @@ class hsdTest extends \PHPUnit_Framework_TestCase
      */
     public function testPackINS()
     {
-        // Remove the following lines when you implement this test.
-        $this->markTestIncomplete(
-            'This test has not been implemented yet.'
-        );
+        $hsd = $this->object;
+
+        $p = $hsd->packINS(0);
+
+        $this->assertEquals(chr(0), $p);
+
+        $p = $hsd->packINS(127);
+
+        $this->assertEquals(chr(127), $p);
+
+        $p = $hsd->packINS(128);
+
+        $this->assertEquals(chr(128) . chr(128), $p);
+
+        $p = $hsd->packINS(255);
+
+        $this->assertEquals(chr(128) . chr(255), $p);
+
+        $p = $hsd->packINS(256);
+
+        $this->assertEquals(chr(129) . chr(0), $p);
+
+        $p = $hsd->packINS(16383);
+
+        $this->assertEquals(chr(191) . chr(255), $p);
+
+        $p = $hsd->packINS(16384);
+
+        $this->assertEquals(chr(192) . chr(64) . chr(0), $p);
+
+        $p = $hsd->packINS(32768);
+
+        $this->assertEquals(chr(192) . chr(128) . chr(0), $p);
+
+        $p = $hsd->packINS(4194303);
+
+        $this->assertEquals(chr(255) . chr(255) . chr(255), $p);
+
+        $b = $hsd->unpackINS(ord($p), substr($p,1));
+        $this->assertEquals(4194303, $b);
+
+        $p = $hsd->packINS(4194304);
+        $this->assertFalse($p);
+
+        $p = $hsd->packINS(-1);
+
+        $this->assertEquals(chr(128) . chr(1), $p);
+
+        $p = $hsd->packINS(-127);
+
+        $this->assertEquals(chr(128) . chr(127), $p);
+
+        $p = $hsd->packINS(-128);
+
+        $this->assertEquals(chr(192) . chr(0) . chr(128), $p);
+
+        $p = $hsd->packINS(-16383); //c03fff
+
+        $this->assertEquals(chr(192) . chr(63) . chr(255), $p);
+
+        $p = $hsd->packINS(-16384);
+        $this->assertFalse($p);
+
+        $p = $hsd->packINS(111111111111111);
+        $this->assertFalse($p);
+        $p = $hsd->packINS(-111111111111111);
+        $this->assertFalse($p);
+
     }
 
     /**
@@ -334,10 +398,36 @@ class hsdTest extends \PHPUnit_Framework_TestCase
      */
     public function testUnpackINS()
     {
-        // Remove the following lines when you implement this test.
-        $this->markTestIncomplete(
-            'This test has not been implemented yet.'
-        );
+        $hsd = $this->object;
+
+        foreach([
+            0 => 1,
+            127 => 1,
+            128 => 2,
+            255 => 2,
+            256 => 2,
+            16383 => 2,
+            16384 => 3,
+            32767 => 3,
+            32768 => 3,
+            65535 => 3,
+            65536 => 3,
+            4194303 => 3,
+            4194304 => 0,
+            -1 => 2,
+            -127 => 2,
+            -128 => 3,
+            -16383 => 3,
+            -16384 => 0,
+        ] as $n => $l) {
+            $p = $hsd->packINS($n);
+            $this->assertEquals($l, strlen($p));
+            if ($p !== false) {
+                $f = ord($p[0]);
+                $u = $hsd->unpackINS($f, substr($p,1));
+                $this->assertEquals($n, $u);
+            }
+        }
     }
 
     /**
