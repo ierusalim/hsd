@@ -44,6 +44,7 @@ class hsd
             $this->base_name .
             '-lock.bin';
     }
+
 /*
  Lock-file format:
  - First4 is First 4 bytes = bp4-header: 1 byte = [hashx], 2 byte = [alg], 1 byte = [ehl]
@@ -70,32 +71,6 @@ class hsd
 After fixed area to end of file - place for iii-package with hsd-parameters.
  From this iii-package getting parameters to create next hsd-files.
  */
-
-    /**
-     * Create or rewrite Locker-file
-     *
-     * @param boolean $overwrite
-     * @param string $locker_str
-     * @return boolean|string
-     */
-
-    public function writeLocker(
-        $locker_str, //data-string, packaged by self::packLocker()
-        $overwrite = false
-    ) {
-        // check locker file
-        $locker_file_name = $this->lockerFileName();
-        if (!$overwrite && is_file($locker_file_name)) {
-            return "HSD locker already exist";
-        }
-
-        // write locker
-        $wb_cnt = file_put_contents($locker_file_name, $locker_str);
-        if ($wb_cnt < strlen($locker_str)) {
-            return 'Error HSD-locker write';
-        }
-        return false;
-    }
 
     /**
      * Make data-string for locker-file
@@ -495,6 +470,7 @@ After fixed area to end of file - place for iii-package with hsd-parameters.
         }
         return false;
     }
+
     /**
      * Unpack 1-3 bytes hsd-ins format to integer
      *
@@ -525,37 +501,41 @@ After fixed area to end of file - place for iii-package with hsd-parameters.
         return $fc ? $n : -$n;
     }
 
+/**
+ * III-format = array to string serialize, like serialize(), json_encode(), etc.
+ *
+ * ->packIII($arr)   = Pack array to string
+ * ->unpackIII($str) = Unpack array from string
+ *
+ * Sub-arrays supported.
+ *
+ * Limits:
+ * - array keys must have length between 1-33 bytes
+ * - max length of string element is 65535 bytes
+ * - numeric array keys 0,1,2.. accepted as string keys '0', '1', '2',...
+ *
+ * Format each element: 1 header byte, then 0,1,2 or 4 bytes.
+ * bbbn nnnn
+ * |||\----/-- name length 00000-11111 = 1-33
+ * \|/-------- type of data
+ * Types of data:
+ * 000x xxxx - boolean false
+ * 001x xxxx - int 1 byte
+ * 010x xxxx - int 2 byte
+ * 011x xxxx - int 4 byte
+ * 100x xxxx - boolean true
+ * 101x xxxx - string 1 byte length
+ * 110x xxxx - string 2 byte length
+ * 111x xxxx - special int 4 byte ext
+ *  \/-------- 00 = +0 bytes, 01 = +1 byte, 10 = +2 byte, 11 = +4 byte
+ * si (special int 4 byte) value (from 0 to 2^32=4294967296) means:
+ * si = 0 = -1
+ * si in [1-255] = numeric value in string length 0-255
+ * si in [256-2^32] =  si/256 length of nested array III-package
+ */
+
     /**
-     * III-format = array to string serialize, like serialize(), json_encode(), etc.
-     *
-     * ->packIII($arr)   = Pack array to string
-     * ->unpackIII($str) = Unpack array from string
-     *
-     * Sub-arrays supported.
-     *
-     * Limits:
-     * - array keys must have length between 1-33 bytes
-     * - max length of string element is 65535 bytes
-     * - numeric array keys 0,1,2.. accepted as string keys '0', '1', '2',...
-     *
-     * Format each element: 1 header byte, then 0,1,2 or 4 bytes.
-     * bbbn nnnn
-     * |||\----/-- name length 00000-11111 = 1-33
-     * \|/-------- type of data
-     * Types of data:
-     * 000x xxxx - boolean false
-     * 001x xxxx - int 1 byte
-     * 010x xxxx - int 2 byte
-     * 011x xxxx - int 4 byte
-     * 100x xxxx - boolean true
-     * 101x xxxx - string 1 byte length
-     * 110x xxxx - string 2 byte length
-     * 111x xxxx - special int 4 byte ext
-     *  \/-------- 00 = +0 bytes, 01 = +1 byte, 10 = +2 byte, 11 = +4 byte
-     * si (special int 4 byte) value (from 0 to 2^32=4294967296) means:
-     * si = 0 = -1
-     * si in [1-255] = numeric value in string length 0-255
-     * si in [256-2^32] =  si/256 length of nested array III-package
+     * Pack array to string by III-format
      *
      * @param array $arr
      * @return string|false
@@ -1040,221 +1020,5 @@ After fixed area to end of file - place for iii-package with hsd-parameters.
         if ($bytes_len != $size) return false;
         $hash = hash_final($hs, true);
         return $hash;
-    }
-
-    public static function FileWalkBlocks($file_name, $file_size = false, $fn_every_block = false)
-    {
-        if  (!is_file($file_name)) {
-            return 'File not found';
-        }
-        if (!$file_size) {
-            $file_size = filesize($file_name);
-        }
-        $fd = fopen($file_name, 'rb');
-        if (!$fd) {
-            return "Can't open source file $file_name";
-        }
-
-        // get header
-        $head_arr = self::unpackHSDheader(fread($fd, 1100));
-        if (!is_array($head_arr)) {
-            return 'Bad file format';
-        }
-        $hash_size = $head_arr['hash_size'];
-
-        $last_hash_point = $head_arr['blocks'];
-        if (!$last_hash_point) {
-            return "No finalized blocks";
-        } elseif($last_hash_point>0) {
-            // File finalized
-            fseek($fd, $file_size - 4);
-            $fin_len = fread($fd, 4);
-            $fin_len = unpack('N', $fin_len)[1];
-            $last_hash_point = $file_size - $fin_len - 4 - $hash_size;
-        } else {
-            $last_hash_point = -$last_hash_point;
-        }
-
-        $st_blk_n = $head_arr['blk']['from'];
-        $data_seek = $head_arr['seek'];
-
-        $len_arr = [];
-        // Blocks counting from tail to head
-        while($last_hash_point > $data_seek) {
-            fseek($fd, $last_hash_point - 4);
-            $block_len = fread($fd, 4);
-            $block_len = unpack('N', $block_len)[1];
-            $len_arr[] = $block_len;
-            $last_hash_point -= $block_len;
-        }
-
-        $blocks_cnt = count($len_arr);
-        $blocks_arr = array_fill($st_blk_n, $blocks_cnt, 0);
-        $blocks_arr['from'] = $st_blk_n;
-        $blocks_arr['blocks_cnt'] = $blocks_cnt;
-
-        for($p = $blocks_cnt - 1; $p >= 0; $p--) {
-            $blocks_arr[$st_blk_n++] = $len_arr[$p];
-        }
-
-        $blk = $head_arr['blk'];
-        $blk['hash_size'] = $hash_size;
-        if ($fn_every_block !== false) {
-            $seek = $data_seek;
-            $st_blk_n = $blocks_arr['from'];
-            for($n = 0; $n < $blocks_cnt; $n++) {
-                $blk_n = $st_blk_n + $n;
-                $block_len = $blocks_arr[$blk_n];
-                $result = call_user_func($fn_every_block,
-                    ['fd' => $fd,
-                     'seek' => $seek,
-                     'block_len' => $block_len,
-                     'blk_n' => $blk_n,
-                     'blk' => &$blk,
-                    ]);
-                $seek += $block_len;
-                if ($result === false) break;
-                $blocks_arr[$blk_n] = $result;
-            }
-        }
-        fclose($fd);
-        return $blocks_arr;
-    }
-
-    public static function FileVerifyBlockHashes(
-        $file_name,
-        $ret_err_cnt = true,
-        $fn_hash = __CLASS__. '::hashCalcInFile'
-    ) {
-        $errors = 0;
-        $walk = self::FileWalkBlocks($file_name, false,
-        function($par_arr) use ($fn_hash, &$errors) {
-            extract($par_arr);// $fd, $seek, $block_len, $blk_n, $blk
-
-            $hash_size = $blk['hash_size'];
-            $hash_name = $blk['hash'];
-
-            $hash_seek = $seek + $block_len;
-            fseek($fd, $hash_seek);
-            $hash_bin = fread($fd, $hash_size);
-            // calculate real hash
-            fseek($fd, $seek);
-            $real_hash = call_user_func($fn_hash, $fd, $block_len, $hash_name);
-
-            if ($real_hash == $hash_bin) {
-                $ok = "OK";
-            } else {
-                $ok = "FAIL";
-                $errors++;
-            }
-            return $ok;
-        });
-        if (!is_array($walk)) {
-            return $walk;
-        }
-        if ($ret_err_cnt) {
-            return $errors;
-        }
-        $walk['errors'] = $errors;
-        return $walk;
-    }
-    public static function FileWalkTrans($file_name, $fn_every_trans)
-    {
-        if (!is_file($file_name)) {
-            return 'File not found';
-        }
-        $fd = fopen($file_name, 'rb');
-        if (!$fd) {
-            return "Can't open source file $file_name";
-        }
-
-        // get header
-        $seek = 1100;
-        $buff = fread($fd, $seek);
-        $head_arr = self::unpackHSDheader($buff);
-        if (!is_array($head_arr)) {
-            return 'Bad file format';
-        }
-
-        $blk = $head_arr['blk'];
-
-        $p = $head_arr['seek'];
-
-        //function for buffered-reading from file
-        $reader = function($len, $max_read = 1100) use ($fd, &$eof, &$seek, &$buff, &$p) {
-            // return: string from buff, side effect: set $eof and change pointers
-            // if no enought data in buff, read data from file-resource $fd to buff.
-            // pointer $seek is the place for reading data to buff
-
-            // result: $data
-            // side effects: set $eof value and change pointers
-            $eof = false;
-            $l = strlen($buff);
-            $ost = $l - $p; // how many not-readed bytes have in buffer?
-            if ($len <= $ost) {
-                //return the result from buffer if possible
-                $data = substr($buff, $p, $len);
-                $p += $len;
-            } else {
-                //read new data from file to buffer, if need
-                $data = substr($buff, $p); // but, previously, return data remaining in buffer
-                $buff = ''; //and clear buffer
-                $p = 0;
-                if (feof($fd)) {
-                    //can't read new data if end of file is reached, but return data remaining in buffer
-                    $eof = true;
-                } else {
-                    // read new data from file (size limited by $max_read)
-                    $buff = fread($fd, $max_read);
-                    if (false === $buff) {
-                        // if no data - set eof flag
-                        $eof = true;
-                    } else {
-                        $seek += strlen($buff);
-                        $p = $len - $ost;
-                        $data .= substr($buff, 0, $p);
-
-                        if (feof($fd)) { //if file resource set EOF, also set eof if buffer ended
-                            $eof = !($p < strlen($buff));
-                        }
-                    }
-                }
-            }
-            return $data;
-        };
-
-        $eof = false;
-
-        while (!$eof) {
-            // Read INS
-
-            $data = $reader(1);
-
-            if ($eof) break; //eof reached - no more records
-
-            $first_byte_n = ord($data); // 1 byte expected
-
-            // how many bytes need to read, for receive full INS ?
-            $fc = ($first_byte_n & 192) / 64;
-            if ($fc > 1) {
-                $data = $reader($fc - 1);
-            }
-            // unpack INS
-            $ins = self::unpackINS($first_byte_n, $data);
-            $a = abs($ins); // framgent length
-
-            // read INS data
-            $data = $reader($a, $a + 3);
-
-            // call user-function on readed data.
-            if (call_user_func($fn_every_trans, $ins, [
-                'data' => &$data,
-                'blk'  => &$blk,
-            ])) {
-                break;
-            }
-        }
-        fclose ($fd);
-        return $head_arr;
     }
 }
