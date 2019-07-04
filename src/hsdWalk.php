@@ -17,7 +17,7 @@ class hsdWalk
         }
 
         // get header
-        $head_arr = self::unpackHSDheader(fread($fd, 1100));
+        $head_arr = hsd::unpackHSDheader(fread($fd, 1100));
         if (!is_array($head_arr)) {
             return 'Bad file format';
         }
@@ -85,7 +85,7 @@ class hsdWalk
     public static function FileVerifyBlockHashes(
         $file_name,
         $ret_err_cnt = true,
-        $fn_hash = __CLASS__. '::hashCalcInFile'
+        $fn_hash = '\ierusalim\hsd\hsd::hashCalcInFile'
     ) {
         $errors = 0;
         $walk = self::FileWalkBlocks($file_name, false,
@@ -132,12 +132,10 @@ class hsdWalk
         // get header
         $seek = 1100;
         $buff = fread($fd, $seek);
-        $head_arr = self::unpackHSDheader($buff);
+        $head_arr = hsd::unpackHSDheader($buff);
         if (!is_array($head_arr)) {
             return 'Bad file format';
         }
-
-        $blk = $head_arr['blk'];
 
         $p = $head_arr['seek'];
 
@@ -186,6 +184,8 @@ class hsdWalk
 
         $eof = false;
 
+        $txn = 0;
+
         while (!$eof) {
             // Read INS
 
@@ -201,19 +201,22 @@ class hsdWalk
                 $data = $reader($fc - 1);
             }
             // unpack INS
-            $ins = self::unpackINS($first_byte_n, $data);
+            $ins = hsd::unpackINS($first_byte_n, $data);
             $a = abs($ins); // framgent length
 
             // read INS data
             $data = $reader($a, $a + 3);
 
             // call user-function on readed data.
-            if (call_user_func($fn_every_trans, $ins, [
+            if (call_user_func($fn_every_trans, [
+                'txn' => $txn,
                 'data' => &$data,
-                'blk'  => &$blk,
+                'ins' => $ins,
+                'header'  => &$head_arr,
             ])) {
                 break;
             }
+            $txn++;
         }
         fclose ($fd);
         return $head_arr;

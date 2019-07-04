@@ -542,10 +542,13 @@ After fixed area to end of file - place for iii-package with hsd-parameters.
      */
     public static function packIII($arr)
     {
+        if (!is_array($arr)) {
+            return false;
+        }
         $res = [];
         foreach($arr as $n => $v) {
             $l = strlen($n);
-            if ($l <1 || $l>33) return false;
+            if ($l <1 || $l>32) return false;
 
             $l = $b = $l - 1;
 
@@ -587,10 +590,10 @@ After fixed area to end of file - place for iii-package with hsd-parameters.
                 $c = pack('N', strlen($apack) * 256) . $apack;
                 break;
             case 'object':
-                $v = (string)$v;
-                if (!is_string($v)) {
+                if (!method_exists($v, "__toString")) {
                     return false;
                 }
+                $v = (string)$v;
             case 'string':
                 $l = strlen($v);
                 if ($l < 256) {
@@ -605,12 +608,11 @@ After fixed area to end of file - place for iii-package with hsd-parameters.
                 $c .= $v;
                 break;
             default:
-                // unsupported type of value
+                // unsupported type
                 return false;
             }
             $res[] = chr($b) . $n . $c;
         }
-        //$res[] = chr(0);
         return implode($res);
     }
 
@@ -801,13 +803,17 @@ After fixed area to end of file - place for iii-package with hsd-parameters.
             if ($fn_final_check === true) {
                 $fn_final_check = __CLASS__ . '::stdFinalCheck';
             }
-            // function must return false if no need finalize
-            // or integer finalize-length, if need finalize
-            $final_size = call_user_func($fn_final_check, [
-                'rec_size' => &$rec_size,
-                'locker_arr' => &$locker_arr,
-                'iii_arr' => &$this->iii_arr,
-                ]);
+            if (is_callable($fn_final_check)) {
+                // function must return false if no need finalize
+                // or integer finalize-length, if need finalize
+                $final_size = call_user_func($fn_final_check, [
+                    'rec_size' => &$rec_size,
+                    'locker_arr' => &$locker_arr,
+                    'iii_arr' => &$this->iii_arr,
+                    ]);
+            } elseif (is_numeric($fn_final_check)) {
+                $final_size = $fn_final_check;
+            }
         } else {
             $final_size = false;
         }

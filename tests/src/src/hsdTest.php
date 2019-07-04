@@ -436,22 +436,200 @@ class hsdTest extends \PHPUnit_Framework_TestCase
      */
     public function testPackIII()
     {
-        // Remove the following lines when you implement this test.
-        $this->markTestIncomplete(
-            'This test has not been implemented yet.'
-        );
+        $this->testIII();
+    }
+    public function testIII()
+    {
+        $hsd = $this->object;
+        $p = $hsd->packIII(1);
+        $this->assertFalse($p);
+        $p = $hsd->packIII([str_repeat('x', 33) => 1]);
+        $this->assertFalse($p);
+
+        $arr = [str_repeat('x', 32) => 1];
+        $p = $hsd->packIII($arr);
+        $u = $hsd->unpackIII($p);
+        $this->assertEquals($arr, $u);
+
+        $arr = ['' => false];
+        $p = $hsd->packIII($arr);
+        $this->assertFalse($p);
+
+        // Boolean
+        $arr = ['a' => false];
+        $p = $hsd->packIII($arr);
+        $u = $hsd->unpackIII($p);
+        $this->assertEquals($arr, $u);
+        $this->assertEquals(2, strlen($p));
+
+        $arr = ['a' => true];
+        $p = $hsd->packIII($arr);
+        $u = $hsd->unpackIII($p);
+        $this->assertEquals($arr, $u);
+        $this->assertEquals(2, strlen($p));
+
+        // null - unsupported
+        $arr = ['a' => null];
+        $p = $hsd->packIII($arr);
+        $this->assertFalse($p);
+
+        // Strings
+        $arr = ['a' => ''];
+        $p = $hsd->packIII($arr);
+        $u = $hsd->unpackIII($p);
+        $this->assertEquals($arr, $u);
+        $this->assertEquals(3, strlen($p));
+
+        $arr = ['a' => 'b'];
+        $p = $hsd->packIII($arr);
+        $u = $hsd->unpackIII($p);
+        $this->assertEquals($arr, $u);
+        $this->assertEquals(4, strlen($p));
+
+        $l = 255;
+        $arr = ['a' => str_repeat('c', $l)];
+        $p = $hsd->packIII($arr);
+        $u = $hsd->unpackIII($p);
+        $this->assertEquals($arr, $u);
+        $this->assertEquals($l + 3, strlen($p));
+
+        $l = 256;
+        $arr = ['a' => str_repeat('c', $l)];
+        $p = $hsd->packIII($arr);
+        $u = $hsd->unpackIII($p);
+        $this->assertEquals($arr, $u);
+        $this->assertEquals($l + 4, strlen($p));
+
+        $l = 65535;
+        $arr = ['a' => str_repeat('c', $l)];
+        $p = $hsd->packIII($arr);
+        $u = $hsd->unpackIII($p);
+        $this->assertEquals($arr, $u);
+        $this->assertEquals($l + 4, strlen($p));
+
+        $l = 65536;
+        $arr = ['a' => str_repeat('c', $l)];
+        $p = $hsd->packIII($arr);
+        $this->assertFalse($p);
+
+        // Integer
+        $arr = ['a' => 2];
+        $p = $hsd->packIII($arr);
+        $u = $hsd->unpackIII($p);
+        $this->assertEquals($arr, $u);
+        $this->assertEquals(3, strlen($p));
+
+        $arr = ['a' => 256];
+        $p = $hsd->packIII($arr);
+        $u = $hsd->unpackIII($p);
+        $this->assertEquals($arr, $u);
+        $this->assertEquals(4, strlen($p));
+
+        $arr = ['a' => 65536];
+        $p = $hsd->packIII($arr);
+        $u = $hsd->unpackIII($p);
+        $this->assertEquals($arr, $u);
+        $this->assertEquals(6, strlen($p));
+
+        $arr = ['a' => 4294967295];
+        $p = $hsd->packIII($arr);
+        $u = $hsd->unpackIII($p);
+        $this->assertEquals($arr, $u);
+        $this->assertEquals(6, strlen($p));
+
+        // -1 Exception
+        $arr = ['a' => -1];
+        $p = $hsd->packIII($arr);
+        $u = $hsd->unpackIII($p);
+        $this->assertEquals($arr, $u);
+        $this->assertEquals(6, strlen($p));
+
+        // Numeric as string
+        $arr = ['a' => 4294967296];
+        $p = $hsd->packIII($arr);
+        $u = $hsd->unpackIII($p);
+        $this->assertEquals($arr, $u);
+        $this->assertEquals(16, strlen($p));
+
+        $arr = ['a' => -2];
+        $p = $hsd->packIII($arr);
+        $u = $hsd->unpackIII($p);
+        $this->assertEquals($arr, $u);
+        $this->assertEquals(8, strlen($p));
+
+        $arr = ['a' => -1234567890];
+        $p = $hsd->packIII($arr);
+        $u = $hsd->unpackIII($p);
+        $this->assertEquals($arr, $u);
+        $this->assertEquals(17, strlen($p));
+
+        // Float (as string)
+        $arr = ['a' => 1.2];
+        $p = $hsd->packIII($arr);
+        $u = $hsd->unpackIII($p);
+        $this->assertEquals($arr, $u);
+        $this->assertEquals(9, strlen($p));
+
+        $arr = ['a' => 1.23];
+        $p = $hsd->packIII($arr);
+        $u = $hsd->unpackIII($p);
+        $this->assertEquals($arr, $u);
+        $this->assertEquals(10, strlen($p));
+
+        // big number
+        $arr = ['a' => 1234567890123456789];
+        $p = $hsd->packIII($arr);
+        $u = $hsd->unpackIII($p);
+        $this->assertEquals($arr, $u);
+        $this->assertEquals(25, strlen($p));
+
+        // big number
+        $arr = ['a' => 999999999999999999];
+        $p = $hsd->packIII($arr);
+        $u = $hsd->unpackIII($p);
+        $this->assertEquals($arr, $u);
+        $this->assertEquals(24, strlen($p));
+
+        // array in array
+        $arr = ['a' => ['b' => 'c']];
+        $p = $hsd->packIII($arr);
+        $u = $hsd->unpackIII($p);
+        $this->assertEquals($arr, $u);
+        $this->assertEquals(10, strlen($p));
+
+        // array in array in array
+        $arr = ['a' => ['b' => ['c' => 1, 'd' => 2], 'e' => [3, 4]], 5];
+        $p = $hsd->packIII($arr);
+        $u = $hsd->unpackIII($p);
+        $this->assertEquals($arr, $u);
+        $this->assertEquals(33, strlen($p));
+
+        // error in array in array
+        $arr = ['a' => ['b' => 3, ['c' => null]]];
+        $p = $hsd->packIII($arr);
+        $this->assertFalse($p);
+
+        // object to string (error)
+        $p = $hsd->packIII(['a' => $hsd]);
+        $this->assertFalse($p);
+
+        // $this have __toString method
+        $arr = ['a' => $this];
+        $p = $hsd->packIII($arr);
+        $this->assertTrue(is_string($p));
     }
 
+    public function __toString()
+    {
+        return "Test";
+    }
     /**
      * @covers ierusalim\hsd\hsd::unpackIII
      * @todo   Implement testUnpackIII().
      */
     public function testUnpackIII()
     {
-        // Remove the following lines when you implement this test.
-        $this->markTestIncomplete(
-            'This test has not been implemented yet.'
-        );
+         $this->testIII();
     }
 
     /**
