@@ -1,4 +1,6 @@
+/src/hsd_v1.php
 /start.php
+/paratest.php
 /test-*
 /test.*
 /tests/tmp
