@@ -3,6 +3,7 @@ namespace ierusalim\hsd;
 
 class hsd
 {
+    use hsdRanges;
     public $base_path; //init on construct
     public $base_name; //init on construct
     public $sid_bin;   //init on construct
@@ -71,11 +72,11 @@ class hsd
     /**
      * Read last or first hash from finalized hsd-file or from hash-file
      *
-     * Return: string-hash or false if error
+     * Return: string-hash-bin or false if error
      *
-     * @param int $hsd_n
+     * @param int|false $hsd_n
      * @param int $read_last 1 = read last hash, 0 = read first (prev) hash
-     * @return string
+     * @return string|false
      */
     public function readEdgeHash($hsd_n = false, $read_last = 1)
     {
@@ -102,6 +103,16 @@ class hsd
         }
         return $edge_hash;
     }
+
+    /**
+     * Read last hash from previous hsd-file
+     * or calcZeroHash for 1 file
+     *
+     * Return: string of binary hash data or false if error
+     *
+     * @param int|false $hsd_n
+     * @return string|false
+     */
     public function readPrevHash($hsd_n = false)
     {
         if ($hsd_n === false) {
@@ -199,6 +210,7 @@ class hsd
             $arr['hc'] = false;
         }
         $arr['bsize'] = $ins_size + 1;
+        $arr['asize'] = $arr['wr_seek'] - $arr['bsize'] - 3; //3 bytes of FEOF
         return $arr;
     }
 
@@ -960,19 +972,20 @@ class hsd
             return "Can't open write for append record: $parr";
         }
         $wf = $parr['wf'];
-        if ($wf > 2) { // wf = 1 and 2 can ignore
-            $this->closeWrite(false);
-            return "hsd-file need to repare because wf=$wf";
-        }
-        if ($parr['ff']) {
+        if ($parr['ff'] || $wf > 5) {
             $this->closeWrite();
-            // "Can't write because hsd-file finalized";
+            // Can't write to this file because hsd-file finalized
+            // try shift to new hsd-file
             $cell_arr = $this->hsdFolderCell($this->hsd_folder);
             if ($this->hsd_n != $cell_arr['hsd_n']) {
                 $this->hsd_n = $cell_arr['hsd_n'];
                 return $this->appendRecord($data);
             }
             return "Can't write because current hsd-file finalized and new not created";
+        }
+        if ($wf > 2) { // wf = 1 and 2 can ignore
+            $this->closeWrite(false);
+            return "hsd-file need to repare because wf=$wf";
         }
 
         // make INS
