@@ -205,10 +205,10 @@ class vc85
             return false;
         }
         $r = '';
-        while ((integer)$dec > 0) {
+        while ($dec > 0) {
             $dv = $dec / 85;
             $i = $dec % 85;
-            $dec = $dv;
+            $dec = (integer)$dv;
             $r .= $this->vc85c[$i];
         }
         return \strrev($r);
