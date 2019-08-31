@@ -18,6 +18,15 @@ class vc85
               . hex2bin('e7e3e4e6e8ebeff4f6f7f8fefdc1c3c4c6c8cbcfd4d6d7d8dedf');
     }
 
+    /**
+     * Encode bytes-string to vc85 non-fixed-size string
+     *
+     * Output code-page (work_cp) if 'utf-8' by default
+     *
+     * @param string $src
+     * @param false|string $output_cp
+     * @return string
+     */
     public function encode($src, $output_cp = false)
     {
         if (!$output_cp) {
@@ -30,6 +39,13 @@ class vc85
         return $enc;
     }
 
+    /**
+     * Decode vc85 non-fixed-size string to bytes string
+     *
+     * @param string $src
+     * @param false|string $from_cp
+     * @return false|string
+     */
     public function decode($src, $from_cp = false)
     {
         if (!$from_cp) {
@@ -41,6 +57,14 @@ class vc85
         return $this->decode_cp1251($src);
     }
 
+    /**
+     * Encode bytes to non-fixed-size vc85 string in bytes-code (cp1251 base)
+     *
+     * each 4 bytes encode to 5 vc85-bytes
+     *
+     * @param string $src
+     * @return string
+     */
     public function encode_cp1251($src)
     {
         $first_c = $this->vc85c[0];
@@ -67,6 +91,12 @@ class vc85
         return implode($wrk_arr);
     }
 
+    /**
+     * Decode vc85 non-fixed-size string in bytes-code (cp1251 base code-page)
+     *
+     * @param string $src
+     * @return string
+     */
     public function decode_cp1251($src)
     {
         if (!strlen($src)) {
@@ -95,7 +125,55 @@ class vc85
     }
 
     /**
-     * Decode string from base85 to decimal
+     * Encode integer value to vc85 fixed-size string
+     *
+     * @param int $dec (0 .. 2724905250390624)
+     * @param int $len (1..8) Output string size
+     * @return string|false
+     */
+    public function encode_fixed_int($dec, $len)
+    {
+        if ($len < 1 || $len > 8 || $dec < 0 || $dec > 2724905250390624) {
+            return false;
+        }
+        $enc = $this->base85_encode($dec);
+        if (is_string($enc)) {
+            $l = strlen($enc);
+            if ($l > $len) {
+                return false;
+            } elseif ($l < $len) {
+                $first_c = $this->vc85c[0];
+                $enc = str_pad($enc, $len, $first_c, \STR_PAD_LEFT);
+            }
+        }
+        if (is_string($enc) && $this->work_cp != $this->int_cp) {
+            $enc = \mb_convert_encoding($enc, $this->work_cp, $this->int_cp);
+        }
+        return $enc;
+    }
+
+    /**
+     * Decode fixed-size vc85-string (1..8 bytes) to integer
+     *
+     * @param string $src
+     * @return integer|false
+     */
+    public function decode_fixed_int($src)
+    {
+        if (!is_string($src)) {
+            return false;
+        }
+        if ($this->work_cp != $this->int_cp) {
+            $src = \mb_convert_encoding($src, $this->int_cp, $this->work_cp);
+        }
+        if (strlen($src) > 8) {
+            return false;
+        }
+        return $this->base85_decode($src);
+    }
+
+    /**
+     * Decode string from base85 to integer
      *
      * @param string $src
      * @return string|false
